@@ -25,6 +25,10 @@ cat /proc/cpuinfo
 | `cat /proc/cpuinfo` | **Detailed information about each CPU/core** | Large, detailed output |
 
 
+tar -czvf backup.tar.gz /home/user/mydata
+tar -xzvf backup.tar.gz
+tar = archive, gzip = compress.
+
 # Memory
 free -h
 # Disk space
