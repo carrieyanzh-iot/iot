@@ -1,0 +1,46 @@
+环节	        bash 版本	              Python 版本
+MQTT 客户端	  mosquitto_sub CLI	      paho-mqtt 事件驱动(on_message 回调)
+JSON 解析	    jq -r '.contact'	      data.get("contact")
+SQL 写入	    字符串拼接(有注入风险)	  ? 占位符参数化查询
+断线处理	      无(mosquitto_sub 断开脚本就死了)	on_disconnect + paho-mqtt 内置自动重连
+异常处理	      几乎没有	JSON 解析、DB 写入、子进程调用都包了 try-except
+
+pip install paho-mqtt --break-system-packages
+
+树莓派宿主机(裸机运行,非 Docker)
+├── mosquitto(MQTT Broker,监听 1883 端口)
+├── zigbee2mqtt
+└── gate_monitor.py(你的 Python 脚本,直接用宿主机装的 Python 3.11 跑)
+
+
+docker run --rm -it \
+  -v /home/carrieyanzh/python_zigbee:/data \
+  keinos/sqlite3 \
+  sqlite3 /data/gate_history.db
+
+docker ps -a
+docker rm bcdef26c4d6b
+docker rmi nginx:latest
+
+mkdir -p /home/carrieyanzh/nginx-html
+docker run -d \
+  --name nginx-web \
+  --restart unless-stopped \
+  -p 8088:80 \
+  -v /home/carrieyanzh/nginx-html:/usr/share/nginx/html \
+  nginx:latest
+
+
+docker ps --format "table {{.Names}}\t{{.Ports}}"
+
+sudo apt install -y sqlite3
+
+Zigbee 门磁 → zigbee2mqtt → MQTT Broker
+                                  ↓
+                    gate_monitor.py(paho-mqtt 订阅 + 写 SQLite)✅
+                                  ↓
+                    generate_json.sh(查 SQLite + 生成 JSON)✅
+                                  ↓
+                    Nginx 容器(挂载了 nginx-html 目录)✅
+                                  ↓
+                    浏览器访问 data.json ← 待验证
