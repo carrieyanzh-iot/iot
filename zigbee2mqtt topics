@@ -1,0 +1,31 @@
+MQTT broker(如 Mosquitto) responsible for messages 。 zigbee2mqtt is bridge. 
+#!/bin/bash
+# zigbee2mqtt_sub.sh - Subscribe to zigbee2mqtt MQTT messages
+
+BROKER="192.168.1.122"
+PORT="1883"
+BASE_TOPIC="zigbee2mqtt"
+
+# Subscribe to all zigbee2mqtt topics (devices + bridge status)
+mosquitto_sub -h "$BROKER" -p "$PORT" -t "${BASE_TOPIC}/#" -v
+
+
+#!/bin/bash
+mosquitto_sub -h 192.168.1.122 -p 1883 -t "zigbee2mqtt/0xa4c13871078c4064" -v
+
+#!/bin/bash
+BROKER="192.168.1.122"
+PORT="1883"
+BASE_TOPIC="zigbee2mqtt"
+
+# Only device topics, exclude bridge/*
+mosquitto_sub -h "$BROKER" -p "$PORT" -t "${BASE_TOPIC}/+" -v
+
+Note: + matches exactly one topic level, so zigbee2mqtt/+ matches zigbee2mqtt/0xa4c13871078c4064 but not zigbee2mqtt/bridge/health (which is two levels deep).
+
+mosquitto_sub -h 192.168.1.122 -p 1883 -t "zigbee2mqtt/#" -v | grep -v "^zigbee2mqtt/bridge/"
+
+mosquitto_sub -h 192.168.1.122 -p 1883 -t "zigbee2mqtt/#" -v -d  ( Add -d (debug) to see connection status:)
+
+mosquitto_pub -h 192.168.1.122 -p 1883 -t "zigbee2mqtt/0xa4c13871078c4064" -m '{"temperature": 25.0, "humidity": 50, "battery": 100, "linkquality": 160}'
+
