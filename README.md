@@ -29,6 +29,17 @@ tar -czvf backup.tar.gz /home/user/mydata
 tar -xzvf backup.tar.gz
 tar = archive, gzip = compress.
 
+ps aus
+kill 
+
+chown :chown alice:developers file.txt
+chgrp : chgrp developers file.txt
+chmod : chmod 755 file.txt
+
+chown  → WHO owns it?
+chgrp  → WHICH GROUP?
+chmod  → WHAT can they do?
+
 # Memory
 free -h
 # Disk space
