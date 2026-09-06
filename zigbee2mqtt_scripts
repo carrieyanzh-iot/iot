@@ -1,0 +1,107 @@
+1. 用 mosquitto_pub/sub 检查设备状态
+
+#!/bin/bash
+# 订阅所有 zigbee2mqtt 设备状态,打印出来
+MQTT_HOST="192.168.1.122"
+MQTT_PORT="1883"
+
+mosquitto_sub -h "$MQTT_HOST" -p "$MQTT_PORT" -t "zigbee2mqtt/+" -v
+
+Note：
+zigbee2mqtt/+ 里的 + 是单层通配符,理论上会匹配所有设备的 topic,比如:
+
+zigbee2mqtt/kitchen_light
+zigbee2mqtt/living_room_sensor
+zigbee2mqtt/bedroom_switch
+
+carrieyanzh@raspberrypisg:~/zigbee2mqttscript $ mosquitto_sub -h "192.168.1.122" -p "1883" -t "zigbee2mqtt/+" -v
+zigbee2mqtt/0xa4c1383c1690e3b4 {"battery":100,"battery_low":false,"contact":false,"linkquality":138,"tamper":false,"voltage":3000}
+zigbee2mqtt/0xa4c1383c1690e3b4 {"battery":100,"battery_low":false,"contact":true,"linkquality":98,"tamper":false,"voltage":3000}
+zigbee2mqtt/0xa4c1383c1690e3b4 {"battery":100,"battery_low":false,"contact":false,"linkquality":116,"tamper":false,"voltage":3000}
+zigbee2mqtt/0xa4c1383c1690e3b4 {"battery":100,"battery_low":false,"contact":true,"linkquality":131,"tamper":false,"voltage":3000}
+
+
+2. 开启 permit_join(允许新设备加入)60 秒
+#!/bin/bash
+MQTT_HOST="192.168.1.122"
+
+mosquitto_pub -h "$MQTT_HOST" -t "zigbee2mqtt/bridge/request/permit_join"  -m '{"value": true, "time": 60}'
+
+echo "Permit join enabled for 60 seconds."
+
+--
+cat /opt/zigbee2mqtt/data/configuration.yaml | grep -A 5 blacklist
+sudo systemctl restart zigbee2mqtt  or docker restart zigbee2mqtt
+
+
+3. 检查某个设备是否离线(基于 last_seen)
+bash
+#!/bin/bash
+DEVICE="0x00158d0001a2b3c4"
+MQTT_HOST="192.168.1.122"
+
+RESPONSE=$(mosquitto_sub -h "$MQTT_HOST" -t "zigbee2mqtt/${DEVICE}" -C 1 -W 5)
+
+if [ -z "$RESPONSE" ]; then
+  echo "设备无响应,可能离线: $DEVICE"
+else
+  echo "设备状态: $RESPONSE"
+fi
+
+Notes:
+availability:
+  enabled: true
+  passive:
+    timeout: 2
+
+
+4. 备份 zigbee2mqtt 配置和数据库
+#!/bin/bash
+Z2M_DATA_DIR="/opt/zigbee2mqtt/data"
+BACKUP_DIR="/backup/zigbee2mqtt"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+mkdir -p "$BACKUP_DIR"
+tar -czf "${BACKUP_DIR}/z2m_backup_${TIMESTAMP}.tar.gz" -C "$Z2M_DATA_DIR" .
+
+echo "备份完成: ${BACKUP_DIR}/z2m_backup_${TIMESTAMP}.tar.gz"
+
+
+5. 用 Docker 重启 zigbee2mqtt 容器并检查健康状态
+bash
+#!/bin/bash
+CONTAINER_NAME="zigbee2mqtt"
+
+echo "重启容器: $CONTAINER_NAME"
+docker restart "$CONTAINER_NAME"
+
+sleep 10
+
+STATE=$(mosquitto_sub -h "$MQTT_HOST" -t "zigbee2mqtt/bridge/state" -C 1 -W 5)
+
+if echo "$STATE" | grep -q '"online"'; then
+  echo "zigbee2mqtt 正常运行"
+else
+  echo "zigbee2mqtt 状态异常: $STATE"
+  docker logs --tail 50 "$CONTAINER_NAME"
+fi
+
+note:
+mosquitto_sub -h 192.168.1.122 -t "zigbee2mqtt/bridge/state" -C 1
+应该会返回:
+
+json
+{"state":"online"}
+
+6. 批量给所有灯设备发送开关命令
+bash
+#!/bin/bash
+MQTT_HOST="localhost"
+DEVICES=("kitchen_light" "living_room_light" "bedroom_light")
+
+for dev in "${DEVICES[@]}"; do
+  mosquitto_pub -h "$MQTT_HOST" -t "zigbee2mqtt/${dev}/set" -m '{"state": "OFF"}'
+  echo "已发送关闭命令: $dev"
+done
+
+
