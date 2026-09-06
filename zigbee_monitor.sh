@@ -22,7 +22,7 @@ BATTERY_LOW_THRESHOLD=20     # 电量低于这个百分比就告警
 LINKQUALITY_LOW_THRESHOLD=30 # 信号质量低于这个值就告警
 CHECK_INTERVAL_SEC=60        # 每隔多久检查一次"是否离线"
 
-LOG_FILE="/home/zigbee/zigbee-monitor/monitor.log"
+LOG_FILE="/home/carrieyanzh/zigbee-monitor/monitor.log"
 
 # ========== 告警函数(按需替换成 Telegram / 邮件 / webhook)==========
 send_alert() {
@@ -47,7 +47,7 @@ log_info() {
 
 # ========== 状态存储 ==========
 # 用普通文件存每个设备的"最后一次收到消息的时间戳" (关联数组在子进程/后台任务间不共享,用文件更稳)
-STATE_DIR="/home/zigbee/zigbee-monitor/state"
+STATE_DIR="/home/carrieyanzh/zigbee-monitor/state"
 mkdir -p "$STATE_DIR"
 
 update_last_seen() {
