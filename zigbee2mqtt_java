@@ -1,0 +1,175 @@
+方案对比
+	直接用 Paho (mqttv3)	Spring Integration MQTT
+依赖	org.eclipse.paho.client.mqttv3	spring-boot-starter-integration + spring-integration-mqtt(内部仍是 Paho,只是包了一层)
+编程模型	回调式(MqttCallback),命令式	声明式(IntegrationFlow / Channel Adapter),更"Spring"
+适合	想理解底层连接/订阅细节	想快速接入,和 Spring 生态(事件、Bean 生命周期)结合更自然
+
+建议:先用原生 Paho 跑通一次,理解连接生命周期,再决定要不要换 Spring Integration 封装——直接跳到框架层容易把"MQTT 到底发生了什么"这一步跳过去。
+
+1. 依赖(pom.xml)
+xml
+<dependency>
+    <groupId>org.eclipse.paho</groupId>
+    <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+    <version>1.2.5</version>
+</dependency>
+<dependency>
+    <groupId>com.fasterxml.jackson.core</groupId>
+    <artifactId>jackson-databind</artifactId>
+</dependency>
+
+2. 原生 Paho 客户端(核心)
+java
+@Configuration
+public class MqttConfig {
+
+    @Value("${mqtt.broker.url}")
+    private String brokerUrl; // tcp://<host>:1883
+
+    @Bean(destroyMethod = "disconnect")
+    public MqttClient mqttClient(ZigbeeMessageHandler handler) throws MqttException {
+        MqttClient client = new MqttClient(brokerUrl, MqttClient.generateClientId(), new MemoryPersistence());
+        MqttConnectOptions options = new MqttConnectOptions();
+        options.setAutomaticReconnect(true);   // 你在 Python 那边大概率是手动 reconnect loop，这里框架内置
+        options.setCleanSession(true);
+        options.setConnectionTimeout(10);
+
+        client.setCallback(new MqttCallback() {
+            @Override
+            public void connectionLost(Throwable cause) {
+                log.warn("MQTT connection lost", cause);
+            }
+
+            @Override
+            public void messageArrived(String topic, MqttMessage message) {
+                handler.handle(topic, new String(message.getPayload(), StandardCharsets.UTF_8));
+            }
+
+            @Override
+            public void deliveryComplete(IMqttDeliveryToken token) {}
+        });
+
+        client.connect(options);
+        // zigbee2mqtt 默认发布在 zigbee2mqtt/<friendly_name>，也订阅 bridge 状态方便调试
+        client.subscribe("zigbee2mqtt/#", 0); // QoS 0，和 zigbee2mqtt 默认一致
+        return client;
+    }
+}
+
+注意点(容易踩坑的地方):
+
+zigbee2mqtt/bridge/state 是 retained message,应用启动订阅后会立刻收到一条,不要把它当成"新事件"误处理。
+zigbee2mqtt/bridge/logging、zigbee2mqtt/bridge/devices 这些也会匹配 # 通配符,如果只想要设备数据,建议订阅具体 friendly_name 或在 handler 里按 topic 过滤,而不是全量订阅再筛选(省资源)。
+messageArrived 回调是 Paho 内部线程池调用的,不在 Spring 主线程/请求线程里,如果 handler 里要写数据库,注意事务和线程安全(不能直接依赖 @Transactional 的默认线程绑定行为,要显式测试)。
+
+3. 消息处理 + 落库(SQLite 方案)
+java
+@Component
+@RequiredArgsConstructor
+public class ZigbeeMessageHandler {
+
+    private final ObjectMapper mapper = new ObjectMapper();
+    private final SensorEventRepository repository; // Spring Data JPA
+
+    public void handle(String topic, String payload) {
+        if (!topic.matches("zigbee2mqtt/[^/]+") || topic.startsWith("zigbee2mqtt/bridge")) {
+            return; // 过滤 bridge 相关 topic
+        }
+        try {
+            JsonNode json = mapper.readTree(payload);
+            String friendlyName = topic.substring("zigbee2mqtt/".length());
+            SensorEvent event = new SensorEvent(friendlyName, json.toString(), Instant.now());
+            repository.save(event); // JPA -> SQLite，等价于你 gate_monitor.py 里的 INSERT
+        } catch (JsonProcessingException e) {
+            log.error("Bad payload on topic {}: {}", topic, payload, e);
+        }
+    }
+}
+
+如果继续用 SQLite,Spring Data JPA + org.xerial:sqlite-jdbc + Hibernate 的 SQLite dialect 即可,和你现有 gate_log 表结构基本能对齐,只是从手写 SQL 变成 Entity/Repository。
+
+4. 如果想更"Spring 化"(Spring Integration 版本)
+java
+@Bean
+public MqttPahoClientFactory mqttClientFactory() {
+    DefaultMqttPahoClientFactory factory = new DefaultMqttPahoClientFactory();
+    MqttConnectOptions options = new MqttConnectOptions();
+    options.setServerURIs(new String[]{brokerUrl});
+    options.setAutomaticReconnect(true);
+    factory.setConnectionOptions(options);
+    return factory;
+}
+
+@Bean
+public MessageProducer inbound(MqttPahoClientFactory factory) {
+    MqttPahoMessageDrivenChannelAdapter adapter =
+        new MqttPahoMessageDrivenChannelAdapter("spring-zigbee-client", factory, "zigbee2mqtt/#");
+    adapter.setCompletionTimeout(5000);
+    adapter.setQos(0);
+    adapter.setOutputChannel(mqttInputChannel());
+    return adapter;
+}
+
+@Bean
+public MessageChannel mqttInputChannel() {
+    return new DirectChannel();
+}
+
+@ServiceActivator(inputChannel = "mqttInputChannel")
+public void handleMessage(Message<String> message) {
+    String topic = (String) message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC);
+    // 同上面的处理逻辑
+}
+
+底层还是 Paho,只是连接管理、消息路由用 Spring 的 IntegrationFlow/ServiceActivator 模型接管了
+
+因为 MQTT 根本不是跑在 HTTP 上的协议——这不是"该用哪个 scheme 前缀"的写法问题,是两个完全不同的协议。
+
+MQTT 和 HTTP 是平级关系,不是包含关系
+
+HTTP 和 MQTT 都是应用层协议,都直接建立在 TCP 之上,彼此独立:
+
+应用层:   HTTP          MQTT
+           │              │
+传输层:   TCP ────────────┘
+
+MQTT 有自己的二进制报文格式(CONNECT、PUBLISH、SUBSCRIBE 这些 packet type,固定头 + 可变头 + payload 的字节布局),客户端和 broker 建立 TCP 连接后直接按这套格式收发字节——没有 HTTP request/response 那一套东西(没有 method、没有 header、没有 status code)。用 http:// 去连 1883 端口,broker 收到的是一堆它看不懂的 HTTP 文本(CONNECT / HTTP/1.1...),会直接拒绝或断开,因为它期待的是 MQTT 的二进制协议帧。
+
+tcp:// 这个 scheme 是 Paho 自己定义的,不是标准 URI scheme
+
+严格说 MQTT 协议本身不规定"URL 该长什么样",tcp://host:port 是 Eclipse Paho 客户端库自己约定的写法,用来告诉客户端库"用普通、不加密的 TCP socket 去连"。Paho 支持的几种 scheme 前缀:
+
+Scheme	含义
+tcp://	明文 TCP,默认端口 1883
+ssl:// 或 tls://	TLS 加密的 TCP,默认端口 8883
+ws://	MQTT over WebSocket(明文)
+wss://	MQTT over WebSocket + TLS
+
+Python vs Node.js 已经做过一次(存在同一个 gate_history.db 里,查 gate_log 表验证时间戳和状态匹配)。现在 Spring Boot 是独立的 zigbee_events.db,所以要分别查询三个存储位置,拿同一个物理触发事件(比如你刚才这次开关门)在三边留下的记录做对比:
+
+sql
+-- Pi 上，Python 那条链路
+sqlite3 /opt/zigbee2mqtt/data/gate_history.db "SELECT * FROM gate_log ORDER BY timestamp DESC LIMIT 5;"
+
+-- Windows 上，Spring Boot 这条链路
+sqlite3 C:\sqlite_db\data\zigbee_events.db "SELECT * FROM zigbee_sensor_log ORDER BY received_at DESC LIMIT 5;"
+
+-- 在 sqlite3 里把 epoch 毫秒转成可读时间
+SELECT id, friendly_name, payload, datetime(received_at/1000, 'unixepoch', 'localtime') AS readable_time
+FROM zigbee_sensor_log ORDER BY received_at DESC LIMIT 5;
+
+sudo systemctl restart mosquitto
+sudo systemctl status mosquitto
+
+ls -la /etc/mosquitto/conf.d/
+cat /etc/mosquitto/conf.d/*.conf 2>/dev/null
+sudo ss -tlnp | grep 1883
+sudo tail -30 /var/log/mosquitto/mosquitto.log
+
+sudo ufw status
+sudo ufw allow 1883/tcp
+sqlite3 --version
+sqlite3 C:\sqlite_db\data\zigbee_events.db
+.tables
+SELECT * FROM zigbee_sensor_log ORDER BY received_at DESC LIMIT 5;
+.quit
