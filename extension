@@ -81,3 +81,6 @@ allow_anonymous true
 
 bash
 sudo systemctl restart mosquitto
+
+
+
