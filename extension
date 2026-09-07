@@ -1,0 +1,83 @@
+external_extensions
+
+External Extension 要求写成"一个导出的 JS Class",是因为 zigbee2mqtt 在启动时会用 Node.js 的 import/require 机制,把这个文件当作代码直接加载进自己的进程,然后 new 出这个 Class 的实例,
+把内部的对象(zigbee、mqtt、eventBus...)作为参数传给它的构造函数。
+
+这就是为什么必须是 JS/TS:
+
+Python 做不到——Python 解释器和 Node.js 进程是两个完全独立的运行时,Python 代码没有办法被"import 进"一个 Node.js 进程里,拿不到那些内存里的 JS 对象
+Bash 更做不到——Bash 只是调用外部命令的脚本语言,连"进程内加载代码"这个概念都不存在
+
+想象 zigbee2mqtt 是一个 Spring Boot 应用:
+
+Internal Extension = 项目自带的、写死在 src/main/java/ 里的 @Component,是官方团队维护的功能模块
+External Extension = 类似"插件目录扫描"机制——你把自己写的 .jar 丢进一个指定的 plugins/ 文件夹,应用启动时用类加载器动态把它加载进来,变成一个新的 Bean,能用应用内部所有的依赖和上下文,但代码本身不属于这个项目的源码仓库
+
+这一步真正的意义,回顾一下架构对比
+
+现在你有两条完全独立、能达到同样效果的路径:
+
+	外部路径(你现在生产在用的)	内部路径(刚跑通的)
+组件	gate_monitor.py + generate_json.sh	gate-monitor-extension.js
+拿数据方式	订阅 MQTT,收到序列化 JSON	直接挂在 zigbee2mqtt 内部事件总线上
+语言	Python	JavaScript(zigbee2mqtt 进程内)
+适合阶段	生产环境:进程独立、崩溃互不影响,便于用你熟悉的 Python 维护	学习阶段:理解 zigbee2mqtt 内部怎么工作、为后续写更深度的自定义逻辑打基础
+
+只需要这一种方式(在容器内部安装)
+bash
+docker exec -it zigbee2mqtt sh -c "cd /app/data && npm install better-sqlite3"
+docker exec -it zigbee2mqtt ls /app/data/node_modules | grep better-sqlite3
+docker restart zigbee2mqtt
+docker logs -f zigbee2mqtt | grep GateMonitor
+
+正确的完整顺序,只有 4 步
+步骤	命令	目的
+1	docker exec -it zigbee2mqtt sh -c "cd /app/data && npm install better-sqlite3"	在容器内部安装,确保编译环境和运行环境一致
+2	docker exec -it zigbee2mqtt ls /app/data/node_modules | grep better-sqlite3	验证装成功了
+3	docker restart zigbee2mqtt	让扩展重新加载,读到新装的模块
+4	docker logs -f zigbee2mqtt | grep GateMonitor	观察扩展有没有正常初始化、后续操作门磁有没有正常写库
+
+carrieyanzh@raspberrypisg:~ $ docker exec -it zigbee2mqtt sh -c "which node; node --version"
+/usr/bin/node
+v24.18.1
+
+
+sqlite3 /opt/zigbee2mqtt/data/gate_history.db
+
+
+查找 mosquitto.conf 位置,树莓派上按优先级试这几种方法:
+
+最常见的默认路径(用 apt 装的 Mosquitto 几乎都是这个):
+bash
+cat /etc/mosquitto/mosquitto.conf
+ls /etc/mosquitto/conf.d/
+
+Mosquitto 默认会 include_dir /etc/mosquitto/conf.d,所以自定义配置可能被拆分在 conf.d/ 下的某个 .conf 文件里,而不是主文件本身。
+
+如果不确定装在哪、或者用了非标准方式装的,直接问 dpkg(前提是 apt 装的):
+bash
+dpkg -L mosquitto | grep conf
+最保险、不依赖安装方式的方法——直接查 systemd 服务实际用的配置路径:
+bash
+systemctl cat mosquitto
+
+输出里的 ExecStart=/usr/sbin/mosquitto -c <路径> 会告诉你它真正加载的是哪个文件。
+
+兜底全盘搜索(如果上面都没找到,比如是 Docker 装的 Mosquitto):
+bash
+sudo find / -name "mosquitto.conf" 2>/dev/null
+
+找到后编辑(一般要 sudo):
+
+bash
+sudo nano /etc/mosquitto/mosquitto.conf
+
+加上或确认有:
+
+listener 1883 0.0.0.0
+allow_anonymous true
+
+改完重启生效:
+
+bash
+sudo systemctl restart mosquitto
