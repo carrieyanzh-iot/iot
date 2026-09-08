@@ -1,0 +1,45 @@
+ESP32-C3 Super Mini(小小一块,USB-C接口,带Wi-Fi和蓝牙)
+
+ESPHome 和 Arduino IDE 是两条平行的烧录固件的路子,不是谁依赖谁,但底层技术有交集。
+-----
+esphome:
+  name: super-mini-ledzy
+  friendly_name: "Super Mini 蓝灯控制"
+
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: esp32c3
+  framework:
+    type: esp-idf # ESP32-C3 建议使用 esp-idf 框架，更稳定
+
+logger:
+
+api:
+  # 接入 HA 用的 encryption key，可使用默认或自行修改
+  #encryption:
+  #  key: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx="
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: "ASUS-MyHome"      # 请修改为你的 Wi-Fi 名称
+  password: "19621117Carie"  # 请修改为你的 Wi-Fi 密码
+
+# 配置 ESP32 Super Mini 板载蓝灯 (GPIO8)
+output:
+  - platform: gpio
+    pin: GPIO8
+    id: onboard_led_gpio
+    inverted: true # Super Mini 板载蓝灯为低电平触发点亮，需设置反转
+
+switch:
+  - platform: output
+    name: "板载蓝灯开关"
+    output: onboard_led_gpio
+----
+pip3 install esphome
+esphome logs super_mini.yaml
+esphome run super_mini.yaml
+
+
