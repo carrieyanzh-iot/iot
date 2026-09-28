@@ -1,0 +1,25 @@
+alias: carrie 0928 automation
+description: Secure mTLS MQTT Smart Fan Control Layout
+triggers:
+  - topic: homeassistant/sensor/esp32c3_temp/state
+    trigger: mqtt
+conditions: []
+actions:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: '{{ trigger.payload | float(0) >= 29.0 }}'
+        sequence:
+          - action: switch.turn_on
+            target:
+              device_id: eb2da794dec19cfa3a29025f5b08b507
+            data: {}
+      - conditions:
+          - condition: template
+            value_template: '{{ trigger.payload | float(0) < 29.0 }}'
+        sequence:
+          - action: switch.turn_off
+            target:
+              device_id: eb2da794dec19cfa3a29025f5b08b507
+            data: {}
+mode: single
