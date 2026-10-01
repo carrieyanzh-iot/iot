@@ -1,0 +1,7 @@
+sudo raspi-config
+ip addr
+sudo systemctl status/enable/start ssh
+sudo nmcli device wifi connect  "ssid" password "ssid_password"
+
+
+
