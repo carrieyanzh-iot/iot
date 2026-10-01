@@ -43,6 +43,9 @@ tells Docker Compose: "Ignore any pre-built images on Docker Hub. Read the Docke
 Raspberry pi 400:
 cd ~/xiaozhi-esp32-server
 docker build -f Dockerfile-server -t xiaozhi/xiaozhi-esp32-server:261001 .
+
+docker images | grep xiaozhi
+
 /home/pi/xiaozhi-esp32-server/main/xiaozhi-server
 sudo vi docker-compose_all.yml
 services:
