@@ -44,6 +44,8 @@ Raspberry pi 400:
 cd ~/xiaozhi-esp32-server
 docker build -f Dockerfile-server -t xiaozhi/xiaozhi-esp32-server:261001 .
 
+docker build -f Dockerfile-web -t xiaozhi/xiaozhi-esp32-web:261001 .
+
 docker images | grep xiaozhi
 
 /home/pi/xiaozhi-esp32-server/main/xiaozhi-server
@@ -81,6 +83,26 @@ services:
       # 配置文件目录
       - ./uploadfile:/uploadfile
       - ./data:/opt/xiaozhi-esp32-server/data    #（add this row)
+
+make sure in /xiaozhi-esp32-server/main/xiaozhi-server/  folder and execute the deployment command.
+docker compose -f docker-compose_all.yml up -d
+docker compose -f docker-compose_all.yml ps
+
+pi@raspberrypi:~/xiaozhi-esp32-server/main/xiaozhi-server $ docker compose -f docker-compose_all.yml ps
+WARN[0000] /home/pi/xiaozhi-esp32-server/main/xiaozhi-server/docker-compose_all.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potenti                al confusion
+NAME                         IMAGE                                 COMMAND                  SERVICE                      CREATED              STATUS                          P                ORTS
+xiaozhi-esp32-server         xiaozhi/xiaozhi-esp32-server:261001   "python app.py"          xiaozhi-esp32-server         About a minute ago   Restarting (1) 24 seconds ago
+xiaozhi-esp32-server-db      mysql:latest                          "docker-entrypoint.s…"   xiaozhi-esp32-server-db      About a minute ago   Up About a minute (healthy)     3                306/tcp, 33060/tcp
+xiaozhi-esp32-server-redis   redis:8.0                             "docker-entrypoint.s…"   xiaozhi-esp32-server-redis   About a minute ago   Up About a minute (healthy)     6                379/tcp
+xiaozhi-esp32-server-web     xiaozhi/xiaozhi-esp32-web:261001      "/start.sh"              xiaozhi-esp32-server-web     About a minute ago   Up 56 seconds                   0                .0.0.0:8002->8002/tcp, [::]:8002->8002/tcp
+
+check error Logs
+docker compose -f docker-compose_all.yml logs xiaozhi-esp32-server
+
+vi data/.config.yaml
+manager-api:
+  url: http://xiaozhi-esp32-server-web:8002/xiaozhi
+  secret: "PASTE_YOUR_COPIED_SERVER_SECRET_HERE"
 
 
 
