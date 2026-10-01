@@ -3,5 +3,14 @@ ip addr
 sudo systemctl status/enable/start ssh
 sudo nmcli device wifi connect  "ssid" password "ssid_password"
 
+make swap size 4G
+sudo vi /etc/dphys-swapfile
+CONF_SWAPSIZE=4096
+CONF_MAXSWAP=4096
+sudo dphys-swapfile swapoff
+sudo dphys-swapfile setup
+sudo dphys-swapfile swapon
+
+free -h 
 
 
