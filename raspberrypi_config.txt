@@ -20,3 +20,67 @@ sudo apt update && sudo apt upgrade -y
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
 
+xiaozhi:
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+git clone https://github.com/xinnan-tech/xiaozhi-esp32-server.git
+# 1. Navigate to the server folder
+cd ~/xiaozhi-esp32-server/main/xiaozhi-server/
+
+# 2. Create the required data folder
+mkdir -p data
+
+# 3. Copy the template configuration file into data and rename it to .config.yaml
+cp config_from_api.yaml data/.config.yaml
+
+docker compose -f docker-compose_all.yml up -d 
+without modifications is better suited for x86 (desktop/server) architectures
+
+docker compose -f docker-compose_all.yml up -d --build 
+tells Docker Compose: "Ignore any pre-built images on Docker Hub. Read the Dockerfile-server right now, and compile a brand-new image from scratch using my local hardware architecture (ARM64).
+
+
+Raspberry pi 400:
+cd ~/xiaozhi-esp32-server
+docker build -f Dockerfile-server -t xiaozhi/xiaozhi-esp32-server:261001 .
+/home/pi/xiaozhi-esp32-server/main/xiaozhi-server
+sudo vi docker-compose_all.yml
+services:
+  # Server模块
+  xiaozhi-esp32-server:
+    image: xiaozhi-esp32-server:261001
+    container_name: xiaozhi-esp32-server
+
+  # manager-api和manager-web模块
+  xiaozhi-esp32-server-web:
+    image: xiaozhi-esp32-server:261001
+    container_name: xiaozhi-esp32-server-web
+    restart: always
+    networks:
+      - default
+    depends_on:
+      xiaozhi-esp32-server-db:
+        condition: service_healthy
+      xiaozhi-esp32-server-redis:
+        condition: service_healthy
+    ports:
+      # 智控台
+      - "8002:8002"
+    environment:
+      - TZ=Asia/Shanghai
+      - SPRING_DATASOURCE_DRUID_URL=jdbc:mysql://xiaozhi-esp32-server-db:3306/xiaozhi_esp32_server?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&nullCatalogMeansCurrent=true&connectTimeout=30000&socketTimeout=30000&autoReconnect=true&failOverReadOnly=false&maxReconnects=10
+      - SPRING_DATASOURCE_DRUID_USERNAME=root
+      - SPRING_DATASOURCE_DRUID_PASSWORD=123456
+      - SPRING_DATA_REDIS_HOST=xiaozhi-esp32-server-redis
+      - SPRING_DATA_REDIS_PASSWORD=
+      - SPRING_DATA_REDIS_PORT=6379
+    volumes:
+      # 配置文件目录
+      - ./uploadfile:/uploadfile
+      - ./data:/opt/xiaozhi-esp32-server/data    #（add this row)
+
+
+
+
+
+
