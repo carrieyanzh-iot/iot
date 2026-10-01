@@ -104,6 +104,10 @@ manager-api:
   url: http://xiaozhi-esp32-server-web:8002/xiaozhi
   secret: "PASTE_YOUR_COPIED_SERVER_SECRET_HERE"
 
+cd /home/pi/xiaozhi-esp32-server/main/xiaozhi-server
+docker compose -f docker-compose_all.yml restart xiaozhi-esp32-server
+
+
 
 
 
