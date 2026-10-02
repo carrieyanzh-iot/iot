@@ -42,6 +42,13 @@ cp model.pt to ~/xiaozhi-esp32-server/main/xiaozhi-server/models/SenseVoiceSmall
 docker build -f Dockerfile-server -t xiaozhi/xiaozhi-esp32-server:261002 .
 docker build -f Dockerfile-web -t xiaozhi/xiaozhi-esp32-server-web:261002 .
 
+cd /home/pi/xiaozhi-esp32-server/main/xiaozhi-server
+vi  docker-compose_all.yml
+
+cd /home/pi/xiaozhi-esp32-server/main/xiaozhi-server/data
+vi .config.yaml
+
+cd /home/pi/xiaozhi-esp32-server/main/xiaozhi-server
 docker compose -f docker-compose_all.yml up -d 
 without modifications is better suited for x86 (desktop/server) architectures
 
