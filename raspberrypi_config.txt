@@ -26,16 +26,14 @@ if docker is installed; use these commands for checking:
 docker --version
 docker compose version
 docker run hello-world ( if failure, sudo usermod -aG docker $USER; exit, login again)
-
 (sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin)
+
 
 git clone https://github.com/xinnan-tech/xiaozhi-esp32-server.git
 # 1. Navigate to the server folder
 cd ~/xiaozhi-esp32-server/main/xiaozhi-server/
-
 # 2. Create the required data folder
 mkdir -p data
-
 # 3. Copy the template configuration file into data and rename it to .config.yaml
 cp config_from_api.yaml data/.config.yaml
 
