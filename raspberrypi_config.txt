@@ -103,6 +103,16 @@ docker logs -f xiaozhi-esp32-server
 
 docker compose -f docker-compose_all.yml ps
 
+pi@raspberrypi:~ $ curl http://172.18.0.4:8003/xiaozhi/ota/
+OTA接口运行正常，向设备发送的websocket地址是：ws://192.168.1.122:8000/xiaozhi/v1/pi@raspberrypi:
+
+pi@raspberrypi:~ $ curl http://192.168.1.122:8003/xiaozhi/ota/
+OTA接口运行正常，向设备发送的websocket地址是：ws://192.168.1.122:8000/xiaozhi/v1/pi@raspberrypi:~ $
+
+pi@raspberrypi:~ $ curl http://192.168.1.122:8002
+<!doctype html><html lang=""><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="小智后端服务(xiaozhi-server)是由华南理工大学刘思源教授团队主导研发的智能终端软硬件体系后端服务系统，专为xiaozhi-esp32开源硬件打造，具备多协议兼容、声纹识别、知识库管理等核心能力。"><meta name="keywords" content="xiaozhi-server，小智服务端，智控台，AI硬件，智能硬件，AI玩具，情感陪伴，聊天机器人，智能家居，车载机器人"><link rel="icon" href="/favicon.ico"><title>智控台</title><script defer="defer" src="/js/app.d78e2d4a.js"></script><link href="/css/app.5a7e25c8.css" rel="stylesheet"></head><body><div id="app"></div></body></html>pi@raspberrypi:~ $
+
+
 pi@raspberrypi:~/xiaozhi-esp32-server/main/xiaozhi-server $ docker compose -f docker-compose_all.yml ps
 WARN[0000] /home/pi/xiaozhi-esp32-server/main/xiaozhi-server/docker-compose_all.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potenti                al confusion
 NAME                         IMAGE                                 COMMAND                  SERVICE                      CREATED              STATUS                          P                ORTS
