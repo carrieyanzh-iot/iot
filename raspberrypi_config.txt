@@ -159,5 +159,15 @@ ESP-IDF v6.0.1
 cd ~
 git clone https://github.com/78/xiaozhi-esp32.git
 
+# 1. Move into the firmware directory
+cd ~/xiaozhi-esp32
 
+# 2. Activate the compiler tools (Notice the dot and space at the beginning)
+. ~/esp-idf/export.sh
 
+# 3. Lock the configuration target explicitly to the ESP32-S3 architecture
+idf.py set-target esp32s3
+
+idf.py menuconfig
+
+idf.py merge-bin -o custom-xiaozhi.bin
