@@ -133,9 +133,31 @@ manager-api:
 cd /home/pi/xiaozhi-esp32-server/main/xiaozhi-server
 docker compose -f docker-compose_all.yml restart xiaozhi-esp32-server
 
+• Services Online: The terminal explicitly generated your internal network endpoints:
+	• 🌐 OTA Updates: http://172.18.0.4:8003/xiaozhi/ota/
+	• 👁️ Vision Analysis: http://172.18.0.4:8003/mcp/vision/explain
+	• 🔌 WebSocket (ESP32 Link): ws://172.18.0.4:8000/xiaozhi/v1/
 
 
+sudo ufw status
 
+Force-clone the specific v6.0.1 stable release tag along with submodules: 
+git clone -b v6.0.1 --recursive https://github.com/espressif/esp-idf.git ~/esp-idf
+
+cd ~/esp-idf
+# Install compiler dependencies specifically for the ESP32-S3 chip matrix
+./install.sh esp32s3
+
+# Load environmental definitions into your terminal path
+. ./export.sh
+# Verify that your tool reads the exact target version
+idf.py --version
+pi@raspberrypi:~/esp-idf $ idf.py --version
+ESP-IDF v6.0.1
+
+
+cd ~
+git clone https://github.com/78/xiaozhi-esp32.git
 
 
 
