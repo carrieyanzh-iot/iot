@@ -3,7 +3,8 @@ ip addr
 sudo systemctl status/enable/start ssh
 sudo nmcli device wifi connect  "ssid" password "ssid_password"
 
-make swap size 4G
+make swap size 4G:
+
 sudo vi /etc/dphys-swapfile
 CONF_SWAPSIZE=4096
 CONF_MAXSWAP=4096
@@ -21,7 +22,12 @@ curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
 
 xiaozhi:
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+if docker is installed; use these commands for checking:
+docker --version
+docker compose version
+docker run hello-world ( if failure, sudo usermod -aG docker $USER; exit, login again)
+
+(sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin)
 
 git clone https://github.com/xinnan-tech/xiaozhi-esp32-server.git
 # 1. Navigate to the server folder
