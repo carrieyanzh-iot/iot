@@ -39,6 +39,7 @@ cp config_from_api.yaml data/.config.yaml
 
 cp model.pt to ~/xiaozhi-esp32-server/main/xiaozhi-server/models/SenseVoiceSmall
 
+cd ~/xiaozhi-esp32-server
 docker build -f Dockerfile-server -t xiaozhi/xiaozhi-esp32-server:261002 .
 docker build -f Dockerfile-web -t xiaozhi/xiaozhi-esp32-server-web:261002 .
 
@@ -56,11 +57,6 @@ docker compose -f docker-compose_all.yml up -d --build
 tells Docker Compose: "Ignore any pre-built images on Docker Hub. Read the Dockerfile-server right now, and compile a brand-new image from scratch using my local hardware architecture (ARM64).
 
 
-Raspberry pi 400:
-cd ~/xiaozhi-esp32-server
-docker build -f Dockerfile-server -t xiaozhi/xiaozhi-esp32-server:261001 .
-
-docker build -f Dockerfile-web -t xiaozhi/xiaozhi-esp32-web:261001 .
 
 docker images | grep xiaozhi
 
@@ -102,6 +98,9 @@ services:
 
 make sure in /xiaozhi-esp32-server/main/xiaozhi-server/  folder and execute the deployment command.
 docker compose -f docker-compose_all.yml up -d
+docker logs -f xiaozhi-esp32-server-web
+docker logs -f xiaozhi-esp32-server
+
 docker compose -f docker-compose_all.yml ps
 
 pi@raspberrypi:~/xiaozhi-esp32-server/main/xiaozhi-server $ docker compose -f docker-compose_all.yml ps
@@ -116,6 +115,7 @@ check error Logs
 docker compose -f docker-compose_all.yml logs xiaozhi-esp32-server
 
 vi data/.config.yaml
+modify image name ( server/web); add path in web volumn ; replace shanghai to Signapore
 manager-api:
   url: http://xiaozhi-esp32-server-web:8002/xiaozhi
   secret: "PASTE_YOUR_COPIED_SERVER_SECRET_HERE"
